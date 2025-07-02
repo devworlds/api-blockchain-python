@@ -1,0 +1,504 @@
+services:
+  # Core Infrastructure
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: custody
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d custody"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  vault:
+    image: hashicorp/vault:1.15
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://127.0.0.1:8200
+    ports:
+      - "8200:8200"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "VAULT_ADDR=http://127.0.0.1:8200 vault status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    volumes:
+      - vault_data:/vault/file
+
+  # Configuration service to create config files
+  config-init:
+    image: alpine:latest
+    volumes:
+      - config_data:/config
+    command: |
+      sh -c "
+      mkdir -p /config/prometheus /config/grafana/provisioning/datasources /config/grafana/provisioning/dashboards /config/grafana/dashboards /config/loki /config/promtail &&
+      
+      # Prometheus config
+      cat > /config/prometheus/prometheus.yml << 'EOF'
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 15s
+
+      scrape_configs:
+        - job_name: 'prometheus'
+          static_configs:
+            - targets: ['localhost:9090']
+
+        - job_name: 'api-blockchain-python'
+          static_configs:
+            - targets: ['api:8000']
+          metrics_path: '/metrics'
+          scrape_interval: 10s
+          scrape_timeout: 5s
+      EOF
+
+      # Create directory structure for Grafana provisioning
+      mkdir -p /config/datasources /config/dashboards
+      
+      # Grafana datasources (Prometheus + Loki)
+      cat > /config/datasources/datasources.yaml << 'EOF'
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: http://prometheus:9090
+          isDefault: true
+          editable: false
+          basicAuth: false
+          httpMethod: GET
+          jsonData:
+            httpMethod: GET
+            queryTimeout: 60s
+            timeInterval: 30s
+        - name: Loki
+          type: loki
+          access: proxy
+          url: http://loki:3100
+          isDefault: false
+          editable: false
+          basicAuth: false
+          jsonData:
+            maxLines: 1000
+      EOF
+
+      # Grafana dashboard provisioning config
+      cat > /config/dashboards/dashboard.yaml << 'EOF'
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          updateIntervalSeconds: 10
+          allowUiUpdates: true
+          options:
+            path: /var/lib/grafana/dashboards
+      EOF
+
+      # Dashboard completo com métricas e logs
+      cat > /config/api-blockchain-dashboard.json << 'EOF'
+      {
+        \"dashboard\": {
+          \"id\": null,
+          \"title\": \"API Blockchain Python - Dashboard Completo\",
+          \"tags\": [\"blockchain\", \"api\", \"python\", \"monitoring\"],
+          \"style\": \"dark\",
+          \"timezone\": \"browser\",
+          \"refresh\": \"5s\",
+          \"time\": {\"from\": \"now-1h\", \"to\": \"now\"},
+          \"panels\": [
+            {
+              \"id\": 1,
+              \"title\": \"📊 Requests por Segundo\",
+              \"type\": \"stat\",
+              \"targets\": [
+                {
+                  \"expr\": \"sum(rate(api_requests_total[5m]))\",
+                  \"legendFormat\": \"Requests/sec\"
+                }
+              ],
+              \"fieldConfig\": {
+                \"defaults\": {
+                  \"unit\": \"reqps\",
+                  \"color\": {\"mode\": \"thresholds\"},
+                  \"thresholds\": {
+                    \"steps\": [
+                      {\"color\": \"green\", \"value\": null},
+                      {\"color\": \"yellow\", \"value\": 10},
+                      {\"color\": \"red\", \"value\": 50}
+                    ]
+                  }
+                }
+              },
+              \"gridPos\": {\"h\": 8, \"w\": 6, \"x\": 0, \"y\": 0}
+            },
+            {
+              \"id\": 2,
+              \"title\": \"⏱️ Tempo de Resposta (P95)\",
+              \"type\": \"stat\",
+              \"targets\": [
+                {
+                  \"expr\": \"histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))\",
+                  \"legendFormat\": \"P95\"
+                }
+              ],
+              \"fieldConfig\": {
+                \"defaults\": {
+                  \"unit\": \"s\",
+                  \"color\": {\"mode\": \"thresholds\"},
+                  \"thresholds\": {
+                    \"steps\": [
+                      {\"color\": \"green\", \"value\": null},
+                      {\"color\": \"yellow\", \"value\": 0.5},
+                      {\"color\": \"red\", \"value\": 2}
+                    ]
+                  }
+                }
+              },
+              \"gridPos\": {\"h\": 8, \"w\": 6, \"x\": 6, \"y\": 0}
+            },
+            {
+              \"id\": 3,
+              \"title\": \"💰 Carteiras Criadas\",
+              \"type\": \"stat\",
+              \"targets\": [
+                {
+                  \"expr\": \"sum(wallets_created_total)\",
+                  \"legendFormat\": \"Total\"
+                }
+              ],
+              \"fieldConfig\": {
+                \"defaults\": {
+                  \"unit\": \"short\",
+                  \"color\": {\"mode\": \"palette-classic\"}
+                }
+              },
+              \"gridPos\": {\"h\": 8, \"w\": 6, \"x\": 12, \"y\": 0}
+            },
+            {
+              \"id\": 4,
+              \"title\": \"❌ Taxa de Erro\",
+              \"type\": \"stat\",
+              \"targets\": [
+                {
+                  \"expr\": \"sum(rate(errors_total[5m]))\",
+                  \"legendFormat\": \"Errors/sec\"
+                }
+              ],
+              \"fieldConfig\": {
+                \"defaults\": {
+                  \"unit\": \"reqps\",
+                  \"color\": {\"mode\": \"thresholds\"},
+                  \"thresholds\": {
+                    \"steps\": [
+                      {\"color\": \"green\", \"value\": null},
+                      {\"color\": \"yellow\", \"value\": 0.1},
+                      {\"color\": \"red\", \"value\": 1}
+                    ]
+                  }
+                }
+              },
+              \"gridPos\": {\"h\": 8, \"w\": 6, \"x\": 18, \"y\": 0}
+            },
+            {
+              \"id\": 5,
+              \"title\": \"📈 Requests por Endpoint (Últimos 5min)\",
+              \"type\": \"timeseries\",
+              \"targets\": [
+                {
+                  \"expr\": \"sum(rate(api_requests_total[5m])) by (endpoint)\",
+                  \"legendFormat\": \"{{endpoint}}\"
+                }
+              ],
+              \"fieldConfig\": {
+                \"defaults\": {
+                  \"unit\": \"reqps\"
+                }
+              },
+              \"gridPos\": {\"h\": 8, \"w\": 12, \"x\": 0, \"y\": 8}
+            },
+            {
+              \"id\": 6,
+              \"title\": \"🔍 Status HTTP Responses\",
+              \"type\": \"piechart\",
+              \"targets\": [
+                {
+                  \"expr\": \"sum(api_requests_total) by (status_code)\",
+                  \"legendFormat\": \"{{status_code}}\"
+                }
+              ],
+              \"gridPos\": {\"h\": 8, \"w\": 12, \"x\": 12, \"y\": 8}
+            },
+            {
+              \"id\": 7,
+              \"title\": \"🗄️ Operações de Banco de Dados\",
+              \"type\": \"timeseries\",
+              \"targets\": [
+                {
+                  \"expr\": \"sum(rate(database_operations_total[5m])) by (operation)\",
+                  \"legendFormat\": \"{{operation}}\"
+                }
+              ],
+              \"fieldConfig\": {
+                \"defaults\": {
+                  \"unit\": \"ops\"
+                }
+              },
+              \"gridPos\": {\"h\": 8, \"w\": 12, \"x\": 0, \"y\": 16}
+            },
+            {
+              \"id\": 8,
+              \"title\": \"🔐 Operações Vault\",
+              \"type\": \"timeseries\",
+              \"targets\": [
+                {
+                  \"expr\": \"sum(rate(vault_operations_total[5m])) by (operation)\",
+                  \"legendFormat\": \"{{operation}}\"
+                }
+              ],
+              \"fieldConfig\": {
+                \"defaults\": {
+                  \"unit\": \"ops\"
+                }
+              },
+              \"gridPos\": {\"h\": 8, \"w\": 12, \"x\": 12, \"y\": 16}
+            },
+            {
+              \"id\": 9,
+              \"title\": \"📝 Logs da Aplicação (Últimos 100)\",
+              \"type\": \"logs\",
+              \"targets\": [
+                {
+                  \"expr\": \"{job=\\\"api-blockchain-python\\\"}\",
+                  \"datasource\": \"Loki\"
+                }
+              ],
+              \"options\": {
+                \"showTime\": true,
+                \"showLabels\": true,
+                \"sortOrder\": \"Descending\"
+              },
+              \"gridPos\": {\"h\": 12, \"w\": 24, \"x\": 0, \"y\": 24}
+            },
+            {
+              \"id\": 10,
+              \"title\": \"🚨 Logs de Erro (Últimas 24h)\",
+              \"type\": \"logs\",
+              \"targets\": [
+                {
+                  \"expr\": \"{job=\\\"api-blockchain-python\\\"} |= \\\"ERROR\\\"\",
+                  \"datasource\": \"Loki\"
+                }
+              ],
+              \"options\": {
+                \"showTime\": true,
+                \"showLabels\": true,
+                \"sortOrder\": \"Descending\"
+              },
+              \"gridPos\": {\"h\": 12, \"w\": 24, \"x\": 0, \"y\": 36}
+            }
+          ],
+          \"version\": 2
+        }
+      }
+      EOF
+      
+      # Loki configuration
+      cat > /config/loki/loki.yml << 'EOF'
+      auth_enabled: false
+      
+      server:
+        http_listen_port: 3100
+        grpc_listen_port: 9096
+      
+      common:
+        path_prefix: /loki
+        storage:
+          filesystem:
+            chunks_directory: /loki/chunks
+            rules_directory: /loki/rules
+        replication_factor: 1
+        ring:
+          instance_addr: 127.0.0.1
+          kvstore:
+            store: inmemory
+      
+      schema_config:
+        configs:
+          - from: 2020-10-24
+            store: boltdb-shipper
+            object_store: filesystem
+            schema: v11
+            index:
+              prefix: index_
+              period: 24h
+      
+      limits_config:
+        reject_old_samples: true
+        reject_old_samples_max_age: 168h
+        ingestion_rate_mb: 16
+        ingestion_burst_size_mb: 32
+        max_query_series: 1000
+        max_query_parallelism: 32
+      
+      ruler:
+        alertmanager_url: http://localhost:9093
+      
+      analytics:
+        reporting_enabled: false
+      EOF
+
+      # Promtail configuration
+      cat > /config/promtail/promtail.yml << 'EOF'
+      server:
+        http_listen_port: 9080
+        grpc_listen_port: 0
+      
+      positions:
+        filename: /tmp/positions.yaml
+      
+      clients:
+        - url: http://loki:3100/loki/api/v1/push
+      
+      scrape_configs:
+        - job_name: api-blockchain-python-files
+          static_configs:
+            - targets:
+                - localhost
+              labels:
+                job: api-blockchain-python-files
+                __path__: /logs/*.log
+        - job_name: api-blockchain-python-containers
+          docker_sd_configs:
+            - host: unix:///var/run/docker.sock
+              refresh_interval: 5s
+          relabel_configs:
+            - source_labels: [__meta_docker_container_name]
+              regex: blockchain-api
+              target_label: __service__
+            - source_labels: [__meta_docker_container_name]
+              target_label: container
+            - target_label: job
+              replacement: api-blockchain-python
+      EOF
+      
+      echo 'Configuration files created successfully'
+      "
+
+  # API Service
+  api:
+    build: .
+    container_name: blockchain-api
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_DSN=postgresql://user:password@postgres:5432/custody
+      - VAULT_URL=http://vault:8200
+      - VAULT_TOKEN=root
+      - VAULT_SECRET_PATH=eth_wallets
+      - WEB3_PROVIDER_URL=https://sepolia.infura.io/v3/546c10bde2474f839967d30f45a53bdf
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=development
+      - APP_VERSION=1.0.0
+      - ENABLE_METRICS=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - config_data:/config
+    command:
+      - '--config.file=/config/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    depends_on:
+      - api
+      - config-init
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./dashboard.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml:ro
+      - ./api-blockchain-dashboard.json:/var/lib/grafana/dashboards/api-blockchain-dashboard.json:ro
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - loki
+      - config-init
+
+  # Log aggregation with Loki
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - config_data:/config
+      - loki_data:/loki
+    command: -config.file=/config/loki/loki.yml
+    restart: unless-stopped
+    depends_on:
+      - config-init
+
+  # Log collector with Promtail
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: promtail
+    volumes:
+      - config_data:/config
+      - ./logs:/logs:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/config/promtail/promtail.yml
+    restart: unless-stopped
+    depends_on:
+      - loki
+      - config-init
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  config_data:
+  vault_data: 
