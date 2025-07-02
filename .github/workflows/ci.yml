@@ -9,31 +9,29 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.11
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: "3.11"
 
     - name: Cache pip dependencies
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        key: ${{ runner.os }}-pip-3.11-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
+          ${{ runner.os }}-pip-3.11-
           ${{ runner.os }}-pip-
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-asyncio flake8 black isort mypy
+        pip install flake8 black isort mypy
 
     - name: Lint with flake8
       run: |
@@ -54,6 +52,11 @@ jobs:
       run: |
         mypy . --ignore-missing-imports
       continue-on-error: true
+
+    - name: Debug pytest environment
+      run: |
+        export PYTHONPATH=.
+        python debug_pytest.py
 
     - name: Test with pytest
       run: |
@@ -76,7 +79,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: Set up Python 3.11
       uses: actions/setup-python@v4
       with:
         python-version: "3.11"

@@ -1,7 +1,7 @@
 import asyncio
 import time
 from functools import wraps
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Optional
 
 from prometheus_client import Counter, Gauge, Histogram, Info
 
@@ -116,7 +116,7 @@ errors_total = Counter(
 # Decorators for automatic metrics collection
 
 
-def track_time(metric: Histogram, labels: dict = None):
+def track_time(metric: Histogram, labels: Optional[Dict[str, Any]] = None):
     """Decorator to track execution time"""
 
     def decorator(func: Callable) -> Callable:
@@ -154,7 +154,7 @@ def track_time(metric: Histogram, labels: dict = None):
     return decorator
 
 
-def count_calls(metric: Counter, labels: dict = None):
+def count_calls(metric: Counter, labels: Optional[Dict[str, Any]] = None):
     """Decorator to count function calls"""
 
     def decorator(func: Callable) -> Callable:
@@ -203,7 +203,9 @@ def count_calls(metric: Counter, labels: dict = None):
 # Metrics collection functions
 
 
-def record_transaction_created(asset: str, status: str, value: float = None):
+def record_transaction_created(
+    asset: str, status: str, value: Optional[float] = None
+) -> None:
     """Record a transaction creation"""
     transactions_created_total.labels(asset=asset, status=status).inc()
     if value and asset:
@@ -211,8 +213,11 @@ def record_transaction_created(asset: str, status: str, value: float = None):
 
 
 def record_transaction_validated(
-    is_valid: bool, is_confirmed: bool, confirmations: int = None, asset: str = None
-):
+    is_valid: bool,
+    is_confirmed: bool,
+    confirmations: Optional[int] = None,
+    asset: Optional[str] = None,
+) -> None:
     """Record a transaction validation"""
     transactions_validated_total.labels(
         is_valid=str(is_valid), is_confirmed=str(is_confirmed)
@@ -221,7 +226,9 @@ def record_transaction_validated(
         blockchain_confirmations.labels(asset=asset).observe(confirmations)
 
 
-def record_blockchain_operation(operation: str, status: str, duration: float = None):
+def record_blockchain_operation(
+    operation: str, status: str, duration: Optional[float] = None
+) -> None:
     """Record a blockchain operation"""
     blockchain_operations_total.labels(operation=operation, status=status).inc()
     if duration is not None:
@@ -230,7 +237,9 @@ def record_blockchain_operation(operation: str, status: str, duration: float = N
         )
 
 
-def record_vault_operation(operation: str, status: str, duration: float = None):
+def record_vault_operation(
+    operation: str, status: str, duration: Optional[float] = None
+) -> None:
     """Record a Vault operation"""
     vault_operations_total.labels(operation=operation, status=status).inc()
     if duration is not None:
@@ -238,8 +247,8 @@ def record_vault_operation(operation: str, status: str, duration: float = None):
 
 
 def record_database_operation(
-    operation: str, table: str, status: str, duration: float = None
-):
+    operation: str, table: str, status: str, duration: Optional[float] = None
+) -> None:
     """Record a database operation"""
     database_operations_total.labels(
         operation=operation, table=table, status=status
@@ -276,17 +285,25 @@ def set_app_info(version: str, environment: str):
 class MetricsContext:
     """Context manager for tracking metrics"""
 
-    def __init__(self, operation: str, component: str):
+    def __init__(self, operation: str, component: str) -> None:
         self.operation = operation
         self.component = component
-        self.start_time = None
+        self.start_time: Optional[float] = None
 
-    def __enter__(self):
+    def __enter__(self) -> "MetricsContext":
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        duration = time.time() - self.start_time
+    def __exit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[Exception],
+        exc_tb: Optional[Any],
+    ) -> None:
+        if self.start_time is not None:
+            duration = time.time() - self.start_time
+        else:
+            duration = 0.0
 
         if exc_type is None:
             status = "success"

@@ -267,9 +267,7 @@ Icon
 .directory
 .Trash-*
 
-# Test files
-test_*.py
-*_test.py
+# Test files - temporary directories only
 tests/temp/
 tests/fixtures/temp/
 

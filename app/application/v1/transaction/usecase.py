@@ -269,7 +269,7 @@ class GetTransactionHash(LoggerMixin):
                         TransactionEntity(
                             hash=formatted_tx_hash,
                             asset=asset,
-                            address_from=address_from,
+                            address_from=address_from or "",  # Ensure it's never None
                             address_to=destination_address or "",
                             value=transaction_value,
                             is_token=is_token,

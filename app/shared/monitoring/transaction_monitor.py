@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import List
+from typing import List, Optional
 
 from app.infrastructure.blockchain.transaction.node_repository import (
     Web3TransactionRepository,
@@ -31,9 +31,9 @@ class TransactionMonitorService(LoggerMixin):
         self.poll_interval = poll_interval
         self.max_age_hours = max_age_hours
         self.running = False
-        self._task = None
+        self._task: Optional[asyncio.Task] = None
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the monitoring service"""
         if self.running:
             self.logger.warning("Transaction monitor is already running")
@@ -45,7 +45,7 @@ class TransactionMonitorService(LoggerMixin):
             f"Transaction monitor service started - Min confirmations: {self.min_confirmations}, Poll interval: {self.poll_interval}s"
         )
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the monitoring service"""
         self.running = False
         if self._task:
@@ -56,7 +56,7 @@ class TransactionMonitorService(LoggerMixin):
                 pass
         self.logger.info("Transaction monitor service stopped")
 
-    async def _monitor_loop(self):
+    async def _monitor_loop(self) -> None:
         """Main monitoring loop"""
         while self.running:
             try:
@@ -68,7 +68,7 @@ class TransactionMonitorService(LoggerMixin):
                 self.logger.error(f"Error in monitor loop: {str(e)}")
                 await asyncio.sleep(self.poll_interval)
 
-    async def _check_pending_transactions(self):
+    async def _check_pending_transactions(self) -> None:
         """Check pending transactions and update status"""
         try:
             # Get pending transactions
@@ -92,7 +92,7 @@ class TransactionMonitorService(LoggerMixin):
         except Exception as e:
             self.logger.error(f"Error checking pending transactions: {str(e)}")
 
-    async def _check_transaction_status(self, tx_hash: str):
+    async def _check_transaction_status(self, tx_hash: str) -> None:
         """Check the status of a specific transaction"""
         try:
             # Check confirmations

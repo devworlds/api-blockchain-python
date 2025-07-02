@@ -1,13 +1,15 @@
 import logging
 from datetime import datetime
-from typing import List
+from typing import Any, Dict, List, Optional
 
 from app.application.v1.wallet.schemas import WalletCreationStatusResponse
 from app.application.v1.wallet.usecase import CreateWalletsUseCase, GetAllWalletsUseCase
 
 
 # Simple, direct logging
-def write_log(level: str, message: str, extra_data: dict = None):
+def write_log(
+    level: str, message: str, extra_data: Optional[Dict[str, Any]] = None
+) -> None:
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"{timestamp} | {level} | wallet_handler | {message}"
     if extra_data:

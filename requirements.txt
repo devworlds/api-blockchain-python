@@ -16,3 +16,7 @@ prometheus-fastapi-instrumentator
 loguru
 parsimonious>=0.10.0
 eth-abi>=4.0.0
+# Test dependencies - using conservative versions
+pytest==8.0.0
+pytest-cov==4.0.0
+pytest-asyncio==0.20.3
