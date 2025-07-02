@@ -1,9 +1,11 @@
+from decimal import Decimal
+from typing import Optional, Union
+
 from pydantic import BaseModel, field_validator
 from pydantic.types import T
+
 from app.application.v1.transaction.dto import TransactionDTO
-from typing import Optional, Union
-from decimal import Decimal
-from app.shared.utils.validators import validate_eth_value, eth_to_wei
+from app.shared.utils.validators import eth_to_wei, validate_eth_value
 
 
 class TransactionHashResponse(BaseModel):

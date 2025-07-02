@@ -1,5 +1,6 @@
-from app.domain.transaction.repository import TransactionRepository
 from web3 import Web3
+
+from app.domain.transaction.repository import TransactionRepository
 
 
 class Web3TransactionRepository(TransactionRepository):

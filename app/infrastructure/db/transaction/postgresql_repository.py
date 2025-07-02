@@ -1,7 +1,10 @@
-import asyncpg
 import datetime
+
+import asyncpg
+
 from app.domain.transaction.entity import Transaction as TransactionEntity
-from app.infrastructure.db.transaction.model import Transaction as TransactionModel
+from app.infrastructure.db.transaction.model import \
+    Transaction as TransactionModel
 
 
 class PostgreSQLTransactionRepository:

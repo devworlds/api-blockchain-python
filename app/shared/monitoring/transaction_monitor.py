@@ -1,13 +1,12 @@
 import asyncio
 import time
 from typing import List
-from app.shared.monitoring.logging import get_logger, LoggerMixin
-from app.infrastructure.blockchain.transaction.node_repository import (
-    Web3TransactionRepository,
-)
-from app.infrastructure.db.transaction.postgresql_repository import (
-    PostgreSQLTransactionRepository,
-)
+
+from app.infrastructure.blockchain.transaction.node_repository import \
+    Web3TransactionRepository
+from app.infrastructure.db.transaction.postgresql_repository import \
+    PostgreSQLTransactionRepository
+from app.shared.monitoring.logging import LoggerMixin, get_logger
 
 
 class TransactionMonitorService(LoggerMixin):

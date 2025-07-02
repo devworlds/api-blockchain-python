@@ -1,26 +1,22 @@
+import time
+from typing import Dict
+
+import asyncpg
 import hvac
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from typing import Dict
-from app.application.v1.wallet.usecase import VaultService, WalletService
-import asyncpg
-from app.domain.wallet.repository import Wallet, WalletRepository
 
+from app.application.v1.wallet.usecase import VaultService, WalletService
+from app.domain.wallet.repository import Wallet, WalletRepository
 # Monitoring imports
-from app.shared.monitoring.logging import (
-    get_logger,
-    LoggerMixin,
-    log_vault_operation,
-    log_database_operation,
-)
-from app.shared.monitoring.metrics import (
-    record_vault_operation,
-    record_database_operation,
-    record_wallet_created,
-    record_wallet_operation,
-    MetricsContext,
-)
-import time
+from app.shared.monitoring.logging import (LoggerMixin, get_logger,
+                                           log_database_operation,
+                                           log_vault_operation)
+from app.shared.monitoring.metrics import (MetricsContext,
+                                           record_database_operation,
+                                           record_vault_operation,
+                                           record_wallet_created,
+                                           record_wallet_operation)
 
 
 class HashiCorpVaultService(VaultService, LoggerMixin):

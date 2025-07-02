@@ -1,19 +1,18 @@
 import asyncio
-from logging.config import fileConfig
-from sqlalchemy.ext.asyncio import AsyncConnection
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from sqlalchemy.engine import Connection
-from alembic import context
 import os
 import re
-from sqlalchemy.ext.asyncio import create_async_engine
+from logging.config import fileConfig
+
+from alembic import context
+from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
+
 from app.infrastructure.config import load_config
 from app.infrastructure.db.base import Base
-
+from app.infrastructure.db.transaction.model import Transaction
 # Import all models to ensure they're registered with the Base
 from app.infrastructure.db.wallet.model import Wallet
-from app.infrastructure.db.transaction.model import Transaction
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

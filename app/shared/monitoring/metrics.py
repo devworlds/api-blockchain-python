@@ -1,8 +1,9 @@
-from prometheus_client import Counter, Histogram, Gauge, Info
+import asyncio
 import time
 from functools import wraps
-from typing import Callable, Any
-import asyncio
+from typing import Any, Callable
+
+from prometheus_client import Counter, Gauge, Histogram, Info
 
 # API Request Metrics
 api_requests_total = Counter(

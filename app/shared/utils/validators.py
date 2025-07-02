@@ -1,4 +1,4 @@
-from decimal import Decimal, ROUND_DOWN, getcontext
+from decimal import ROUND_DOWN, Decimal, getcontext
 from typing import Union
 
 # Set precision high enough to handle large numbers
