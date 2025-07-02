@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, DateTime, Float, Boolean, Integer, BigInt
 import datetime
 from app.infrastructure.db.base import Base
 
+
 class Transaction(Base):
     __tablename__ = "transactions"
     hash = Column(String, primary_key=True)
@@ -14,6 +15,11 @@ class Transaction(Base):
     status = Column(String, nullable=False)
     effective_fee = Column(BigInteger, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.now, nullable=False)
-    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.datetime.now,
+        onupdate=datetime.datetime.now,
+        nullable=False,
+    )
     deleted_at = Column(DateTime, nullable=True)
-    contract_address = Column(String, nullable=True) 
+    contract_address = Column(String, nullable=True)

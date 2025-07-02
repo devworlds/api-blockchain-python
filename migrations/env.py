@@ -10,6 +10,7 @@ import re
 from sqlalchemy.ext.asyncio import create_async_engine
 from app.infrastructure.config import load_config
 from app.infrastructure.db.base import Base
+
 # Import all models to ensure they're registered with the Base
 from app.infrastructure.db.wallet.model import Wallet
 from app.infrastructure.db.transaction.model import Transaction
@@ -18,7 +19,9 @@ from app.infrastructure.db.transaction.model import Transaction
 # access to the values within the .ini file in use.
 config = context.config
 envConfig = load_config()
-async_dsn = re.sub(r"^postgresql(\+[\w]+)?://", "postgresql+asyncpg://", envConfig.postgres_dsn)
+async_dsn = re.sub(
+    r"^postgresql(\+[\w]+)?://", "postgresql+asyncpg://", envConfig.postgres_dsn
+)
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
@@ -34,6 +37,7 @@ target_metadata = Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -67,6 +71,7 @@ def run_migrations_online():
 
     async def run():
         async with connectable.connect() as async_connection:
+
             def do_run_migrations(sync_connection):
                 context.configure(
                     connection=sync_connection,
@@ -75,6 +80,7 @@ def run_migrations_online():
                 )
                 with context.begin_transaction():
                     context.run_migrations()
+
             await async_connection.run_sync(do_run_migrations)
 
     asyncio.run(run())

@@ -1,6 +1,7 @@
-from typing import  Optional
+from typing import Optional
 import datetime
 from pydantic import BaseModel, Field
+
 
 class Wallet(BaseModel):
     address: str = Field(..., description="The Ethereum address of the wallet")

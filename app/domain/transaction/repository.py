@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class TransactionRepository(ABC):
     @abstractmethod
     def is_token_transaction(self, transaction_hash: str) -> bool:
@@ -12,4 +13,3 @@ class TransactionRepository(ABC):
     @abstractmethod
     def is_valid_transaction(self, transaction_hash: str) -> bool:
         pass
-

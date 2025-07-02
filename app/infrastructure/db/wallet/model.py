@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String, DateTime
 from app.infrastructure.db.base import Base
 
+
 class Wallet(Base):
     __tablename__ = "wallets"
     address = Column(String, primary_key=True)

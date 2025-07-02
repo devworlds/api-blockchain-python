@@ -3,6 +3,7 @@ from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel
 
+
 class Transaction(BaseModel):
     hash: str
     asset: str
