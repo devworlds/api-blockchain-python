@@ -67,31 +67,99 @@ class Web3TransactionRepository(TransactionRepository):
         Retorna uma lista de transferências (ETH ou tokens) associadas a um tx_hash.
         Cada item é um dicionário com: asset, from, to, value
         """
+        print(f"[DEBUG] get_transaction_transfers called for {tx_hash}")
         tx = self.web3.eth.get_transaction(tx_hash)
         transfers = []
+        
         # ETH transfer
         if tx.value and tx.value > 0:
+            print(f"[DEBUG] ETH transfer found: value={tx.value}")
             transfers.append({
                 "asset": "eth",
                 "from": tx['from'],
                 "to": tx['to'],
                 "value": tx.value
             })
+        else:
+            print(f"[DEBUG] No ETH transfer found: tx.value={tx.value}")
+        
         # Token transfers (ERC20)
         try:
             receipt = self.web3.eth.get_transaction_receipt(tx_hash)
-            for log in receipt.logs:
-                # ERC20 Transfer event signature
-                if log.topics and log.topics[0].hex() == "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef":
-                    from_address = "0x" + log.topics[1].hex()[-40:]
-                    to_address = "0x" + log.topics[2].hex()[-40:]
-                    value = int(log.data, 16)
-                    transfers.append({
-                        "asset": "token",
-                        "from": from_address,
-                        "to": to_address,
-                        "value": value
-                    })
-        except Exception:
-            pass
+            print(f"[DEBUG] Transaction receipt found, logs count: {len(receipt.logs)}")
+            
+            for i, log in enumerate(receipt.logs):
+                print(f"[DEBUG] Processing log {i}: topics={len(log.topics) if log.topics else 0}")
+                
+                # ERC20 Transfer event signature (without 0x prefix)
+                transfer_signature = "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+                
+                if log.topics and len(log.topics) > 0:
+                    # Get topic without 0x prefix for comparison
+                    topic_hex = log.topics[0].hex()
+                    print(f"[DEBUG] Log {i} topic[0]: {topic_hex}")
+                    
+                    if topic_hex == transfer_signature:
+                        print(f"[DEBUG] Log {i} is a Transfer event")
+                        if len(log.topics) >= 3:
+                            from_address = "0x" + log.topics[1].hex()[-40:]
+                            to_address = "0x" + log.topics[2].hex()[-40:]
+                            
+                            # Convert log.data to hex string if it's bytes
+                            if isinstance(log.data, bytes):
+                                data_hex = log.data.hex()
+                            else:
+                                data_hex = log.data[2:] if log.data.startswith('0x') else log.data
+                            
+                            value = int(data_hex, 16) if data_hex else 0
+                            print(f"[DEBUG] Token Transfer detected: from={from_address}, to={to_address}, value={value}")
+                            transfers.append({
+                                "asset": "token",
+                                "from": from_address,
+                                "to": to_address,
+                                "value": value
+                            })
+                        else:
+                            print(f"[DEBUG] Log {i} Transfer event has insufficient topics: {len(log.topics)}")
+                    else:
+                        print(f"[DEBUG] Log {i} is not a Transfer event")
+                else:
+                    print(f"[DEBUG] Log {i} has no topics")
+                    
+        except Exception as e:
+            print(f"[ERROR] Failed to get transaction receipt for {tx_hash}: {e}")
+        
+        print(f"[DEBUG] get_transaction_transfers returning {len(transfers)} transfers")
         return transfers
+
+    def get_token_symbol(self, contract_address: str) -> str:
+        """
+        Get the symbol of an ERC20 token from its contract address.
+        Returns the symbol or 'UNKNOWN' if unable to retrieve.
+        """
+        try:
+            # Standard ERC20 ABI for symbol() function
+            erc20_abi = [
+                {
+                    "constant": True,
+                    "inputs": [],
+                    "name": "symbol",
+                    "outputs": [{"name": "", "type": "string"}],
+                    "type": "function"
+                }
+            ]
+            
+            contract = self.web3.eth.contract(
+                address=self.web3.to_checksum_address(contract_address),
+                abi=erc20_abi
+            )
+            
+            symbol = contract.functions.symbol().call()
+            # Normalize symbol to uppercase for consistency
+            symbol_upper = symbol.upper()
+            print(f"[DEBUG] Token symbol for {contract_address}: {symbol} -> {symbol_upper}")
+            return symbol_upper
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to get token symbol for {contract_address}: {e}")
+            return "UNKNOWN"

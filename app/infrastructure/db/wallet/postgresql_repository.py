@@ -171,7 +171,7 @@ class PostgreSQLWalletRepository(WalletRepository, LoggerMixin):
             with MetricsContext("get_wallet_by_address", "database"):
                 async with self._pool.acquire() as conn:
                     row = await conn.fetchrow(
-                        'SELECT address, created_at, updated_at, deleted_at FROM wallets WHERE address = $1', address
+                        'SELECT address, created_at, updated_at, deleted_at FROM wallets WHERE LOWER(address) = LOWER($1)', address
                     )
                     
                     wallet = None

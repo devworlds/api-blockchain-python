@@ -37,7 +37,9 @@ class GetTransactionHash(LoggerMixin):
     async def validate_destination_address(self, address: str) -> bool:
         """Validate if destination address is one of our wallets"""
         try:
-            wallet = await self.wallet_repo.get_wallet_by_address(address)
+            # Normalize address to lowercase for comparison
+            address_lower = address.lower()
+            wallet = await self.wallet_repo.get_wallet_by_address(address_lower)
             return wallet is not None
         except Exception as e:
             self.logger.error(f"Failed to validate destination address - Address: {address}, Error: {str(e)}")
@@ -61,9 +63,14 @@ class GetTransactionHash(LoggerMixin):
             
             # Determine asset type
             if is_token:
-                asset = "token"
+                # Get the actual token symbol from the contract
+                contract_address = tx_data.get("to")
+                if contract_address:
+                    asset = self.web3_repo.get_token_symbol(contract_address)
+                else:
+                    asset = "UNKNOWN"
             else:
-                asset = "eth"
+                asset = "ETH"  # Always uppercase for consistency
 
             # Extract transfer information
             transfers = []
@@ -85,10 +92,27 @@ class GetTransactionHash(LoggerMixin):
             is_confirmed = confirmations >= self.min_confirmations
 
             # Check if destination is our wallet
+            # For token transactions, we need to check the actual transfer destinations, not just tx.to
             destination_address = tx_data.get("to")
             is_our_wallet = False
-            if destination_address:
-                is_our_wallet = await self.validate_destination_address(destination_address)
+            
+            if is_token:
+                # For token transactions, check all transfer destinations
+                for transfer in transfers:
+                    transfer_to = transfer.get("to")
+                    if transfer_to:
+                        # Normalize address to lowercase for comparison
+                        transfer_to_lower = transfer_to.lower()
+                        wallet = await self.wallet_repo.get_wallet_by_address(transfer_to_lower)
+                        if wallet:
+                            is_our_wallet = True
+                            destination_address = transfer_to  # Update to the actual destination
+                            self.logger.info(f"Token transfer destination is our wallet - Address: {transfer_to}")
+                            break
+            else:
+                # For ETH transactions, check the direct destination
+                if destination_address:
+                    is_our_wallet = await self.validate_destination_address(destination_address)
 
             # Check if this transaction should be saved to database (if either address is ours)
             address_from = tx_data.get("from")
@@ -99,14 +123,31 @@ class GetTransactionHash(LoggerMixin):
             
             # Check if address_from is one of our wallets
             if address_from:
-                wallet_from = await self.wallet_repo.get_wallet_by_address(address_from)
+                # Normalize address to lowercase for comparison
+                address_from_lower = address_from.lower()
+                wallet_from = await self.wallet_repo.get_wallet_by_address(address_from_lower)
                 if wallet_from:
                     is_from_our_wallet = True
                     should_save_transaction = True
                     self.logger.info(f"Transaction 'from' address is our wallet - Address: {address_from}")
             
+            # For token transactions, also check if any transfer source is our wallet
+            if is_token:
+                for transfer in transfers:
+                    transfer_from = transfer.get("from")
+                    if transfer_from:
+                        # Normalize address to lowercase for comparison
+                        transfer_from_lower = transfer_from.lower()
+                        wallet_from = await self.wallet_repo.get_wallet_by_address(transfer_from_lower)
+                        if wallet_from:
+                            is_from_our_wallet = True
+                            should_save_transaction = True
+                            address_from = transfer_from  # Update to the actual source
+                            self.logger.info(f"Token transfer source is our wallet - Address: {transfer_from}")
+                            break
+            
             # Check if destination address is one of our wallets
-            if destination_address and is_our_wallet:
+            if is_our_wallet:
                 is_to_our_wallet = True
                 should_save_transaction = True
                 self.logger.info(f"Transaction 'to' address is our wallet - Address: {destination_address}")
@@ -140,13 +181,26 @@ class GetTransactionHash(LoggerMixin):
                 if not existing:
                     self.logger.info(f"Transaction not found in database. Persisting transaction - Hash: {formatted_tx_hash}, Type: {transaction_type}")
                     now = datetime.datetime.now()
+                    
+                    # For token transactions, save the token value instead of tx.value
+                    transaction_value = 0
+                    if is_token and transfers:
+                        # Use the value from the first transfer that involves our wallet
+                        for transfer in transfers:
+                            if (transfer.get("from") == address_from and is_from_our_wallet) or \
+                               (transfer.get("to") == destination_address and is_to_our_wallet):
+                                transaction_value = transfer.get("value", 0)
+                                break
+                    else:
+                        transaction_value = int(tx_data.get("value", 0) or 0)
+                    
                     await self.db_repo.save_transaction(
                         TransactionEntity(
                             hash=formatted_tx_hash,
                             asset=asset,
                             address_from=address_from,
-                            address_to=tx_data.get("to") or "",
-                            value=int(tx_data.get("value", 0) or 0),
+                            address_to=destination_address or "",
+                            value=transaction_value,
                             is_token=is_token,
                             type=transaction_type,
                             status="confirmed" if is_confirmed else "pending",
@@ -154,7 +208,7 @@ class GetTransactionHash(LoggerMixin):
                             created_at=now,
                             updated_at=now,
                             deleted_at=None,
-                            contract_address=tx_data.get("contractAddress") if tx_data.get("contractAddress") is not None else None
+                            contract_address=tx_data.get("to") if is_token else None  # Store contract address for tokens
                         )
                     )
                     self.logger.info(f"Transaction saved in database - Hash: {formatted_tx_hash}, Type: {transaction_type}")
