@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 from app.infrastructure.config import load_config
 from app.infrastructure.db.base import Base
 from app.infrastructure.db.transaction.model import Transaction
+
 # Import all models to ensure they're registered with the Base
 from app.infrastructure.db.wallet.model import Wallet
 

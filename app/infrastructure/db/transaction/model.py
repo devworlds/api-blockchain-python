@@ -1,7 +1,6 @@
 import datetime
 
-from sqlalchemy import (BigInteger, Boolean, Column, DateTime, Float, Integer,
-                        String)
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Float, Integer, String
 
 from app.infrastructure.db.base import Base
 

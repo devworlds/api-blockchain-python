@@ -3,8 +3,7 @@ from datetime import datetime
 from typing import List
 
 from app.application.v1.wallet.schemas import WalletCreationStatusResponse
-from app.application.v1.wallet.usecase import (CreateWalletsUseCase,
-                                               GetAllWalletsUseCase)
+from app.application.v1.wallet.usecase import CreateWalletsUseCase, GetAllWalletsUseCase
 
 
 # Simple, direct logging

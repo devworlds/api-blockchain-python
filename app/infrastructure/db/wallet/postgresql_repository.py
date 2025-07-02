@@ -8,15 +8,21 @@ from eth_account.messages import encode_defunct
 
 from app.application.v1.wallet.usecase import VaultService, WalletService
 from app.domain.wallet.repository import Wallet, WalletRepository
+
 # Monitoring imports
-from app.shared.monitoring.logging import (LoggerMixin, get_logger,
-                                           log_database_operation,
-                                           log_vault_operation)
-from app.shared.monitoring.metrics import (MetricsContext,
-                                           record_database_operation,
-                                           record_vault_operation,
-                                           record_wallet_created,
-                                           record_wallet_operation)
+from app.shared.monitoring.logging import (
+    LoggerMixin,
+    get_logger,
+    log_database_operation,
+    log_vault_operation,
+)
+from app.shared.monitoring.metrics import (
+    MetricsContext,
+    record_database_operation,
+    record_vault_operation,
+    record_wallet_created,
+    record_wallet_operation,
+)
 
 
 class HashiCorpVaultService(VaultService, LoggerMixin):

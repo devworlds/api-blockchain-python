@@ -2,13 +2,18 @@ from typing import List
 
 from fastapi import APIRouter, Body, Depends, Request
 
-from app.application.v1.wallet.handlers import (create_wallets_handler,
-                                                get_all_wallets_handler)
+from app.application.v1.wallet.handlers import (
+    create_wallets_handler,
+    get_all_wallets_handler,
+)
 from app.application.v1.wallet.schemas import WalletCreationStatusResponse
 from app.application.v1.wallet.usecase import CreateWalletsUseCase
 from app.infrastructure.config import load_config
 from app.infrastructure.db.wallet.postgresql_repository import (
-    EthereumWalletService, HashiCorpVaultService, PostgreSQLWalletRepository)
+    EthereumWalletService,
+    HashiCorpVaultService,
+    PostgreSQLWalletRepository,
+)
 
 router = APIRouter(prefix="/v1", tags=["Wallet"])
 

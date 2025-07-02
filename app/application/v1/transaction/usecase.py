@@ -8,24 +8,37 @@ from fastapi import HTTPException
 from web3 import Web3
 
 from app.application.v1.transaction.dto import TransactionDTO
-from app.application.v1.transaction.schemas import (TransactionOnChainRequest,
-                                                    TransactionOnChainResponse)
+from app.application.v1.transaction.schemas import (
+    TransactionOnChainRequest,
+    TransactionOnChainResponse,
+)
 from app.domain.transaction.entity import Transaction as TransactionEntity
-from app.infrastructure.blockchain.transaction.node_repository import \
-    Web3TransactionRepository
-from app.infrastructure.db.transaction.postgresql_repository import \
-    PostgreSQLTransactionRepository
-from app.infrastructure.db.wallet.postgresql_repository import \
-    PostgreSQLWalletRepository
+from app.infrastructure.blockchain.transaction.node_repository import (
+    Web3TransactionRepository,
+)
+from app.infrastructure.db.transaction.postgresql_repository import (
+    PostgreSQLTransactionRepository,
+)
+from app.infrastructure.db.wallet.postgresql_repository import (
+    PostgreSQLWalletRepository,
+)
+
 # Monitoring imports
-from app.shared.monitoring.logging import (LoggerMixin, get_logger,
-                                           log_blockchain_operation,
-                                           log_database_operation,
-                                           log_function_call)
+from app.shared.monitoring.logging import (
+    LoggerMixin,
+    get_logger,
+    log_blockchain_operation,
+    log_database_operation,
+    log_function_call,
+)
 from app.shared.monitoring.metrics import (
-    MetricsContext, record_blockchain_operation, record_transaction_created,
-    record_transaction_validated, track_time,
-    transaction_processing_duration_seconds)
+    MetricsContext,
+    record_blockchain_operation,
+    record_transaction_created,
+    record_transaction_validated,
+    track_time,
+    transaction_processing_duration_seconds,
+)
 from app.shared.utils.validators import wei_to_eth
 
 

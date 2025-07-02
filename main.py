@@ -6,29 +6,38 @@ import asyncpg
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
 # Monitoring imports
 from prometheus_fastapi_instrumentator import Instrumentator
 from web3 import Web3
 
 from app.application.v1.transaction.routers import router as transaction_router
 from app.application.v1.wallet.routers import router as wallet_router
-from app.infrastructure.blockchain.transaction.node_repository import \
-    Web3TransactionRepository
+from app.infrastructure.blockchain.transaction.node_repository import (
+    Web3TransactionRepository,
+)
 from app.infrastructure.config import load_config
-from app.infrastructure.db.transaction.postgresql_repository import \
-    PostgreSQLTransactionRepository
-from app.infrastructure.db.wallet.postgresql_repository import \
-    PostgreSQLWalletRepository
+from app.infrastructure.db.transaction.postgresql_repository import (
+    PostgreSQLTransactionRepository,
+)
+from app.infrastructure.db.wallet.postgresql_repository import (
+    PostgreSQLWalletRepository,
+)
 from app.shared.monitoring.logging import get_logger, setup_logging
-from app.shared.monitoring.metrics import (api_request_duration_seconds,
-                                           api_requests_total,
-                                           database_connection_pool_idle,
-                                           database_connection_pool_size,
-                                           database_connection_pool_used,
-                                           database_health_status,
-                                           record_error, set_app_info)
+from app.shared.monitoring.metrics import (
+    api_request_duration_seconds,
+    api_requests_total,
+    database_connection_pool_idle,
+    database_connection_pool_size,
+    database_connection_pool_used,
+    database_health_status,
+    record_error,
+    set_app_info,
+)
 from app.shared.monitoring.transaction_monitor import (
-    TransactionMonitorManager, TransactionMonitorService)
+    TransactionMonitorManager,
+    TransactionMonitorService,
+)
 
 config = load_config()
 
